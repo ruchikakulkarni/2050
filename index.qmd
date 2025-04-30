@@ -10,3 +10,162 @@ listing:
 page-layout: full
 title-block-banner: true
 ---
+
+## 2050 DATABASE {style="color: blue"}
+
+```{r}
+#| label : setup
+
+library(tidyverse) # Tidy data processing
+library(plotly)
+library(ggformula) # Formula based plots
+library(mosaic) # Data inspection and Statistical Inference
+library(broom) # Tidy outputs from Statistical Analyses
+library(infer) # Statistical Inference, Permutation/Bootstrap
+library(patchwork) # Arranging Plots
+library(ggprism) # Interesting Categorical Axe
+```
+
+### DATASET CONSIDERATIONS {style="color: blue"}
+
+-   Number of people = 1000
+
+-   Age = Legally, people above 21 onward are allowed to have the bio-computer in their body, since it is the year 2050, the global population is projected to reach 9.7 B, with a significant increase in the elderly age group thus the median will shift from 31 (current) to 36 approx.
+
+-   Profession = Currently have included 4 profession across various industries such as agriculture, engineering, healthcare and transport according to their need in 2050.
+
+-   Social connection = Essentially is the number of people a certain person knows.
+
+-   Access to healthcare = Basically how easy it is for them to get proper healthcare.
+
+-   Resource availability = Again, takes into consideration how much a person has access to resources ranging from 20-100.
+
+```{r}
+set.seed(123)
+
+n <- 1000
+
+Age <- round(rnorm(n, mean = 36, sd = 15)) 
+Age[Age < 21] <- 21  
+
+Gender <- sample(c("Male", "Female"), n, replace=TRUE, prob=c(0.5, 0.5))  # Equal distribution of Male and Female
+
+Professions <- c("Farmer", "Engineer", "Doctor", "Driver")
+Profession <- sample(Professions, n, replace = TRUE, prob = c(0.2, 0.5, 0.2, 0.1))  
+
+Resources <- runif(n, min = 20, max = 100)
+
+HealthcareAccess <- runif(n, min = 0, max = 1)
+
+BioComputerUser <- sample(c("Yes", "No"), n, replace=TRUE, prob=c(0.3, 0.7))
+
+# Combine everything into a dataframe
+society_2050 <- data.frame(
+  Age,
+  Gender,
+  Profession,
+  Resources,
+  HealthcareAccess,
+  BioComputerUser
+)
+
+# Check the first few rows
+head(society_2050)
+```
+
+```{r}
+write.csv(society_2050, "society_2050.csv", row.names=FALSE)
+```
+
+```{r}
+getwd()
+```
+
+### DATA MUNGING {style="color: blue"}
+
+```{r}
+society_2050 <- society_2050 %>%
+  mutate(
+    Age = as.integer(Age),               # Convert Age to integer
+    Profession = as.factor(Profession),    # Convert Profession to factor
+    Resources = as.numeric(Resources),    # Convert Resources to numeric
+    HealthcareAccess = as.numeric(HealthcareAccess),  # Convert HealthcareAccess to numeric
+    BioComputerUser = as.factor(BioComputerUser)  # Convert BioComputerUser to factor
+  )
+
+# Check the structure of the modified dataset
+glimpse(society_2050)
+```
+
+### DATA DICTIONARY {style="color: blue"}
+
+### 
+
+#### BOX PLOT
+
+-   The boxplot showcases how resources are distributed for doctors and engineers, to understand if one profession has consistently higher or lower resources than the other.
+
+-   The plot shows the range and outliers that are outside the typical range.
+
+```{r}
+# Filter the dataset for Doctors and Engineers
+subset_profession <- society_2050[society_2050$Profession %in% c("Doctor", "Engineer"), ]
+
+# Create the box plot
+ggplot(subset_profession, aes(x = Profession, y = Resources, fill = Profession)) +
+  geom_boxplot() +
+  labs(title = "Resource Distribution: Doctors vs Engineers",
+       x = "Profession",
+       y = "Resource Availability") +
+  scale_fill_manual(values = c("Doctor" = "blue", "Engineer" = "purple")) +
+  theme_minimal(base_size = 14)
+
+```
+
+```{r}
+scatter_plot <- plot_ly(
+  data = society_2050,
+  x = ~Resources,
+  y = ~HealthcareAccess,
+  type = "scatter",
+  mode = "markers",
+  color = ~Profession, # Color by Profession (Engineer, Doctor etc.)
+  marker = list(opacity = 0.6)
+)
+
+# 2D Histogram (Density Plot)
+hist2d_plot <- plot_ly(
+  data = society_2050,
+  x = ~Resources,
+  y = ~HealthcareAccess,
+  type = "histogram2d"
+)
+
+# Combine both plots vertically
+fig <- subplot(scatter_plot, hist2d_plot, nrows = 2, shareX = TRUE, shareY = TRUE)
+
+fig
+```
+
+```{r}
+set.seed(123)
+society_2050$year <- sample(2020:2050, n, replace = TRUE)
+
+fig <- plot_ly(
+  data = society_2050, 
+  x = ~Age, 
+  y = ~Resources, 
+  color = ~HealthcareAccess, 
+  size = ~ifelse(BioComputerUser == "Yes", 10, 5),
+  text = ~paste("Age:", Age, "<br>Resources:", round(Resources, 2), 
+                "<br>Healthcare Access:", round(HealthcareAccess, 2), 
+                "<br>BioComputer User:", BioComputerUser),
+  frame = ~year,  
+  type = 'scatter',
+  mode = 'markers',
+  marker = list(opacity = 0.6),
+  hoverinfo = 'text'
+)
+
+fig
+```
